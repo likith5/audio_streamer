@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <audio controls autoplay>
+        <source src="{{ url_for('audio') }}" type="audio/x-wav;codec=pcm">
+        Your browser does not support the audio element.
+    </audio>
+    <container>
+        <p>
+            <h2>helloo</h2>
+            <b id="data"></b>
+        </p>
+    </container>
+
+    <script>
+        function updateData(data) {
+            document.getElementById("data").innerText = data;
+        }
+
+        // Example: Update data every 5 seconds
+        setInterval(function() {
+            fetch('/get_data')  // Endpoint to get the updated data
+            .then(response => response.json())
+            .then(data => {
+                updateData(data);
+            })
+            .catch(error => console.error('Error:', error));
+        }, 5000);  // Update interval in milliseconds
+    </script>
+</body>
+</html>
