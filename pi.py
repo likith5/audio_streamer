@@ -1,13 +1,13 @@
+# app.py
 from flask import Flask, Response, render_template, jsonify
 import pyaudio
-from deepgram import DeepgramClient, DeepgramClientOptions, LiveTranscriptionEvents, LiveOptions
+from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
 import httpx
 import threading
 import queue
 
-DEEPGRAM_API_KEY = 'aa8ccf1588fb050d5bb2a7770747e9e157e5142c'
-URL = 'http://172.20.10.2:5454/audio'
-
+DEEPGRAM_API_KEY = '2085598c756664d156dad8cc47cad493362a5c2b'
+URL = 'http://192.168.0.236:5454/audio'
 app = Flask(__name__)
 
 FORMAT = pyaudio.paInt16
@@ -18,26 +18,29 @@ CHUNK = 1024
 audio_stream = pyaudio.PyAudio()
 words_queue = queue.Queue()
 
+
 def genHeader(sampleRate, bitsPerSample, channels):
-    datasize = 2000 * 10 ** 6
-    o = bytes("RIFF", 'ascii')
-    o += (datasize + 36).to_bytes(4, 'little')
-    o += bytes("WAVE", 'ascii')
-    o += bytes("fmt ", 'ascii')
-    o += (16).to_bytes(4, 'little')
-    o += (1).to_bytes(2, 'little')
-    o += (channels).to_bytes(2, 'little')
-    o += (sampleRate).to_bytes(4, 'little')
-    o += (sampleRate * channels * bitsPerSample // 8).to_bytes(4, 'little')
-    o += (channels * bitsPerSample // 8).to_bytes(2, 'little')
-    o += (bitsPerSample).to_bytes(2, 'little')
-    o += bytes("data", 'ascii')
-    o += (datasize).to_bytes(4, 'little')
+    datasize = 2000 * 10**6
+    o = bytes("RIFF", 'ascii')  # (4byte) Marks file as RIFF
+    o += (datasize + 36).to_bytes(4, 'little')  # (4byte) File size in bytes excluding this and RIFF marker
+    o += bytes("WAVE", 'ascii')  # (4byte) File type
+    o += bytes("fmt ", 'ascii')  # (4byte) Format Chunk Marker
+    o += (16).to_bytes(4, 'little')  # (4byte) Length of above format data
+    o += (1).to_bytes(2, 'little')  # (2byte) Format type (1 - PCM)
+    o += (channels).to_bytes(2, 'little')  # (2byte)
+    o += (sampleRate).to_bytes(4, 'little')  # (4byte)
+    o += (sampleRate * channels * bitsPerSample // 8).to_bytes(4, 'little')  # (4byte)
+    o += (channels * bitsPerSample // 8).to_bytes(2, 'little')  # (2byte)
+    o += (bitsPerSample).to_bytes(2, 'little')  # (2byte)
+    o += bytes("data", 'ascii')  # (4byte) Data Chunk Marker
+    o += (datasize).to_bytes(4, 'little')  # (4byte) Data size in bytes
     return o
+
 
 def get_access_api(data):
     print("Received data:", data)
     words_queue.put(data)
+
 
 def main():
     try:
@@ -71,7 +74,6 @@ def main():
         myHttp = threading.Thread(target=myThread)
         myHttp.start()
 
-        # Keep the function running by joining the thread
         myHttp.join()
 
         dg_connection.finish()
@@ -79,38 +81,40 @@ def main():
     except Exception as e:
         print(f'Could not open socket: {e}')
 
+
 def Sound():
-    bitspersample = 16
-    wav_hader = genHeader(RATE, bitspersample, 2)
-    stream = audio_stream.open(format=FORMAT, channels=2, rate=RATE, input=True, input_device_index=1,
-                               frames_per_buffer=CHUNK)
+    bits_per_sample = 16
+    wav_header = genHeader(RATE, bits_per_sample, 2)
+    stream = audio_stream.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
     first_run = True
     while True:
         if first_run:
-            data = wav_hader + stream.read(CHUNK)
+            data = wav_header + stream.read(CHUNK)
             first_run = False
         else:
             data = stream.read(CHUNK)
-        yield (data)
+        yield data
+
 
 @app.route('/')
 def index():
-    # Start the transcription process in a separate thread
     threading.Thread(target=main).start()
     return render_template("index.html")
 
+
 @app.route("/audio")
 def audio():
-    p = Response(Sound())
-    return p
+    return Response(Sound(), mimetype="audio/x-wav")
+
 
 @app.route('/get_data')
 def get_data():
-    if not words_queue.empty():
-        data = words_queue.get()
-        return jsonify(data)
-    else:
+    try:
+        data = words_queue.get(timeout=1)
+        return jsonify({"data": data})
+    except queue.Empty:
         return jsonify({"error": "No data available"})
 
+
 if __name__ == "__main__":
-    app.run(host="172.20.10.2", port=5454, threaded=True)
+    app.run(host="192.168.0.236", port=5454, threaded=True)
