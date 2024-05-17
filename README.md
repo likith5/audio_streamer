@@ -38,10 +38,12 @@ env
 Copy code
 DEEPGRAM_API_KEY=your_deepgram_api_key
 Run the application:
-python app.py
+python add.py
 
-Open your web browser and navigate to http://127.0.0.1:5000/.
+
+Open your web browser and navigate to http://.....// to your local server or just click on the url showed in the command line.
 Click on the "Start Streaming" button to begin streaming audio.
+
 The application will capture audio from your microphone and process it using the Deepgram API.
 Transcriptions and audio analysis results will be displayed in real-time on the web interface.
 Configuration
